@@ -2,6 +2,10 @@ provider "aws" {
   region = "eu-west-1"
 }
 
+mock_provider "aws" {
+  alias = "fake"
+}
+
 # Gloval Variables
 variables {
   name                        = "demo"
@@ -91,27 +95,6 @@ run "instance_type_validation" {
   }
 }
 
-#4 Unit Test with apply
-run "ebs_volume_validation" {
-  command = plan
-
-  assert {
-    condition     = length(aws_instance.demo.ebs_block_device) > 0
-    error_message = "Error: No EBS volumes attached to the instance."
-  }
-
-  assert {
-    condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_size if device.volume_size == var.ebs_volume_size])
-    error_message = "Error: EBS volume size does not match expected value."
-  }
-
-  assert {
-    condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_type if device.volume_type == var.ebs_volume_type])
-    error_message = "Error: EBS volume type does not match expected value."
-  }
-}
-
-
 #2 modules - Integaration testing 
 run "create_key_pair" {
   # Create the ec2 key pair .
@@ -144,15 +127,63 @@ run "lookup_verify_key_pair" {
   }
 }
 
-#integration testing
-run "validate_key_pair" {
+#integration testing with apply
+run "validate_key_pair_with_apply" {
+  command = apply
+
   variables {
     key_name             = run.create_key_pair.key_name
     ami_id               = "ami-0d940f23d527c3ab1"
     iam_instance_profile = "AllowSSMforEC2"
   }
   assert {
-    condition     = data.aws_key_pair.this.key_name == var.key_name
-    error_message = "Key pair name is wrong"
+    condition     = aws_instance.demo.tags_all["Name"] == var.name
+    error_message = "Error: Instance name is not as expected"
+  }
+}
+
+
+# Mock provider
+run "mock_provider" {
+  providers = {
+    aws = aws.fake
+  }
+  command = apply
+
+  module {
+    source = "./testing/setup/s3"
+  }
+  variables {
+    bucket_name = "my-bucket-name"
+  }
+
+  assert {
+    condition     = aws_s3_bucket.my_bucket.bucket == "my-bucket-name"
+    error_message = "incorrect bucket name"
+  }
+}
+
+#4 Unit Test with apply
+run "ebs_volume_validation" {
+  command = apply
+
+  variables {
+    ami_id               = "ami-0d940f23d527c3ab1"
+    iam_instance_profile = "AllowSSMforEC2"
+  }
+
+  assert {
+    condition     = length(aws_instance.demo.ebs_block_device) > 0
+    error_message = "Error: No EBS volumes attached to the instance."
+  }
+
+  assert {
+    condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_size if device.volume_size == var.ebs_volume_size])
+    error_message = "Error: EBS volume size does not match expected value."
+  }
+
+  assert {
+    condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_type if device.volume_type == var.ebs_volume_type])
+    error_message = "Error: EBS volume type does not match expected value."
   }
 }
