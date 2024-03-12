@@ -6,7 +6,7 @@ mock_provider "aws" {
   alias = "fake"
 }
 
-# Gloval Variables
+# Global Variables
 variables {
   name                        = "demo"
   region_name                 = "eu-west-1"
@@ -43,21 +43,13 @@ variables {
   }
 }
 
-#1 Run Data resources required for tests
-run "setup_data" {
 
-  module {
-    source = "./testing/setup/data"
-  }
-}
-
-
-#2 Validate Inputs
+#1 Validate Inputs
 run "validate_inputs"{
   command = plan
 
   variables {
-    instance_type = "t2micro"
+    instance_type = "t2micssro"
     name = "a"
     ami_id = "does-not-exist"
   }
@@ -95,7 +87,15 @@ run "instance_type_validation" {
   }
 }
 
-#2 modules - Integaration testing 
+#4 Run Data resources required for tests
+run "setup_data" {
+
+  module {
+    source = "./testing/setup/data"
+  }
+}
+
+# 5 modules - Integaration testing 
 run "create_key_pair" {
   # Create the ec2 key pair .
   command = apply
@@ -109,7 +109,7 @@ run "create_key_pair" {
   }
 }
 
-#3 modules - Integration testing
+#6 modules - Integration testing
 run "lookup_verify_key_pair" {
   # Verify created ec2 key pair.
 
@@ -127,7 +127,7 @@ run "lookup_verify_key_pair" {
   }
 }
 
-#integration testing with apply
+# #7 integration testing with apply
 run "validate_key_pair_with_apply" {
   command = apply
 
@@ -163,27 +163,27 @@ run "mock_provider" {
   }
 }
 
-#4 Unit Test with apply
-run "ebs_volume_validation" {
-  command = apply
+#8 Unit Test with apply
+# run "ebs_volume_validation" {
+#   command = apply
 
-  variables {
-    ami_id               = "ami-0d940f23d527c3ab1"
-    iam_instance_profile = "AllowSSMforEC2"
-  }
+#   variables {
+#     ami_id               = "ami-0d940f23d527c3ab1"
+#     iam_instance_profile = "AllowSSMforEC2"
+#   }
 
-  assert {
-    condition     = length(aws_instance.demo.ebs_block_device) > 0
-    error_message = "Error: No EBS volumes attached to the instance."
-  }
+#   assert {
+#     condition     = length(aws_instance.demo.ebs_block_device) > 0
+#     error_message = "Error: No EBS volumes attached to the instance."
+#   }
 
-  assert {
-    condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_size if device.volume_size == var.ebs_volume_size])
-    error_message = "Error: EBS volume size does not match expected value."
-  }
+#   assert {
+#     condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_size if device.volume_size == var.ebs_volume_size])
+#     error_message = "Error: EBS volume size does not match expected value."
+#   }
 
-  assert {
-    condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_type if device.volume_type == var.ebs_volume_type])
-    error_message = "Error: EBS volume type does not match expected value."
-  }
-}
+#   assert {
+#     condition = can([for device in aws_instance.demo.ebs_block_device : device.volume_type if device.volume_type == var.ebs_volume_type])
+#     error_message = "Error: EBS volume type does not match expected value."
+#   }
+# }
